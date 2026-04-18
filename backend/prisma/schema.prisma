@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  contacts  Contact[]
+  banks     Bank[]
+  invoices  Invoice[]
+  checks    Check[]
+  remittances Remittance[]
+  createdAt DateTime @default(now())
+}
+
+// ContactType: "CLIENT" | "SUPPLIER"
+// MODULE 1: Contacts
+model Contact {
+  id        String      @id @default(uuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id])
+  type      String      // "CLIENT" | "SUPPLIER"
+  name      String
+  phone     String?
+  address   String?
+  ice       String      // exactly 15 digits (or 0s)
+  if        String?     // max 9 digits
+  rc        String?     // free format alphanumeric
+
+  invoices  Invoice[]   // If supplier
+  checksReceived Check[] @relation("ReceivedFrom")
+  checksIssued   Check[] @relation("IssuedTo")
+}
+
+// MODULE 2: Bank & Checkbooks
+model Bank {
+  id        String      @id @default(uuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id])
+  name      String
+  branch    String
+  rib       String      // exactly 24 digits
+
+  checkbooks Checkbook[]
+  checks     Check[]    // Checks deposited into or issued from this bank
+}
+
+model Checkbook {
+  id         String   @id @default(uuid())
+  bankId     String
+  bank       Bank     @relation(fields: [bankId], references: [id])
+  startNumber Int
+  endNumber   Int
+  nextNumber  Int
+  active      Boolean  @default(true)
+}
+
+// CheckType: "INCOMING" | "OUTGOING"
+// CheckStatus: "PENDING" | "SUBMITTED_TO_BANK" | "PAID" | "UNPAID" | "ENDORSED" | "CONTENTIEUX"
+// MODULE 3, 4 & 5: Incoming/Outgoing/Unpaid Checks
+model Check {
+  id            String      @id @default(uuid())
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id])
+  
+  type          String
+  status        String      @default("PENDING")
+  
+  number        String
+  amount        Float
+  issueDate     DateTime
+  dueDate       DateTime
+  
+  // Relations
+  bankId        String?     // The bank account it's submitted to or issued from
+  bank          Bank?       @relation(fields: [bankId], references: [id])
+  
+  fromContactId String?     // Client who gave us the check
+  fromContact   Contact?    @relation("ReceivedFrom", fields: [fromContactId], references: [id])
+  
+  toContactId   String?     // Supplier we endorsed or issued it to
+  toContact     Contact?    @relation("IssuedTo", fields: [toContactId], references: [id])
+
+  invoiceId     String?     // Linked invoice (for payments)
+  invoice       Invoice?    @relation(fields: [invoiceId], references: [id])
+
+  // Remittance
+  remittanceId  String?
+  remittance    Remittance? @relation(fields: [remittanceId], references: [id])
+
+  // New arrangement for unpaid
+  replacementCheckId String? @unique
+  replacementCheck   Check?  @relation("Replacement", fields: [replacementCheckId], references: [id])
+  replacedByCheck    Check?  @relation("Replacement")
+
+  createdAt     DateTime    @default(now())
+}
+
+model Remittance {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  type       String   // "CHECK" | "EFFET"
+  date       DateTime @default(now())
+  checks     Check[]
+}
+
+// InvoiceStatus: "PENDING" | "PARTIAL" | "PAID"
+// MODULE 6: Invoices
+model Invoice {
+  id          String    @id @default(uuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  
+  supplierId  String
+  supplier    Contact   @relation(fields: [supplierId], references: [id])
+  
+  number      String
+  date        DateTime
+  dueDate     DateTime
+  amount      Float
+  paidAmount  Float     @default(0)
+  status      String    @default("PENDING")
+
+  payments    Check[]
+  createdAt   DateTime  @default(now())
+}
