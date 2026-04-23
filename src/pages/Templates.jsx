@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, RefreshCw, Layers } from 'lucide-react';
+import { Trash2, Save, RefreshCw, Layers } from 'lucide-react';
 import { getBankLogo, BankLogoRender } from '../utils/bankLogos.jsx';
+import { getBanques, saveBanques } from '../utils/storage';
 
-const BANKS = ['CIH BANK', 'Banque Populaire', 'Attijariwafa Bank', 'BMCE Bank', 'Société Générale', 'Crédit du Maroc', 'Crédit Agricole du Maroc'];
 const TYPES = ['Chèque', 'LCN'];
 
 const DIMENSIONS = {
@@ -23,12 +23,19 @@ const lcnExtras = [
   { id: 'domiciliation', label: 'Domiciliation', top: 20, left: 100, width: 60, height: 8 },
 ];
 
-export default function Templates() {
-  const [bank, setBank] = useState(BANKS[0]);
+  const [banks, setBanks] = useState([]);
+  const [bank, setBank] = useState('');
   const [type, setType] = useState(TYPES[0]);
+  const [newBankName, setNewBankName] = useState('');
   
   const [fields, setFields] = useState([]);
   const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const list = getBanques();
+    setBanks(list);
+    setBank(list[0]);
+  }, []);
 
   useEffect(() => {
     loadTemplate();
@@ -95,6 +102,23 @@ export default function Templates() {
     setDraggingId(null);
   };
 
+  const handleAddBank = () => {
+    if (!newBankName.trim()) return;
+    if (banks.includes(newBankName.trim())) return;
+    const updated = [...banks, newBankName.trim()];
+    setBanks(updated);
+    saveBanques(updated);
+    setNewBankName('');
+  };
+
+  const handleDeleteBank = (name) => {
+    if (banks.length <= 1) return alert("Vous devez garder au moins une banque.");
+    const updated = banks.filter(b => b !== name);
+    setBanks(updated);
+    saveBanques(updated);
+    if (bank === name) setBank(updated[0]);
+  };
+
   return (
     <div onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} style={{ minHeight: '100%' }}>
       <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -115,7 +139,7 @@ export default function Templates() {
              <div>
                <label style={lbl}>Banque</label>
                <select value={bank} onChange={e => setBank(e.target.value)} style={{ width: '100%' }}>
-                 {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                 {banks.map(b => <option key={b} value={b}>{b}</option>)}
                </select>
              </div>
              <div>
@@ -139,6 +163,30 @@ export default function Templates() {
                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.8rem' }}>
                  <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{f.label}</span>
                  <span style={{ color: 'var(--accent-primary)', fontFamily: 'monospace' }}>X: {f.left} | Y: {f.top}</span>
+               </div>
+             ))}
+           </div>
+        </div>
+
+        {/* Bank Management Card */}
+        <div className="card" style={{ flex: 1 }}>
+           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', marginBottom: '1rem' }}>Gestion des Banques</h3>
+           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+             <input 
+               value={newBankName} 
+               onChange={e => setNewBankName(e.target.value)}
+               placeholder="Nouvelle banque..." 
+               style={{ flex: 1, padding: '0.5rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: '#fff', borderRadius: '4px' }}
+             />
+             <button className="btn-primary" onClick={handleAddBank} style={{ padding: '0.5rem 1rem' }}>Ajouter</button>
+           </div>
+           <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+             {banks.map(b => (
+               <div key={b} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: 'var(--bg-main)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                 <span style={{ fontSize: '0.9rem', color: '#fff' }}>{b}</span>
+                 <button onClick={() => handleDeleteBank(b)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                   <Trash2 size={16} />
+                 </button>
                </div>
              ))}
            </div>

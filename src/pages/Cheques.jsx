@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Printer, Save, CheckCircle, CreditCard, Trash2, Settings, X, Move } from 'lucide-react';
 import { numberToFrench } from '../utils/numberToFrench';
 import { BankLogoRender } from '../utils/bankLogos.jsx';
+import { getBanques } from '../utils/storage';
 
 const CHECK_WIDTH_MM = 175;
 const CHECK_HEIGHT_MM = 80;
@@ -32,6 +33,7 @@ export default function Cheques() {
   const [calibrating, setCalibrating] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [globalOffsets, setGlobalOffsets] = useState({ left: 0, top: 0 });
+  const [banques, setBanques] = useState([]);
   const previewRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -54,11 +56,13 @@ export default function Cheques() {
     const p = JSON.parse(localStorage.getItem('payees') || '[]');
     const e = JSON.parse(localStorage.getItem('emittedDocs') || '[]').filter(d => d.type === 'Chèque');
     const offsets = JSON.parse(localStorage.getItem('globalPrintOffsets') || '{"left": 0, "top": 0}');
+    const bList = getBanques();
     
     setCarnets(c);
     setPayees(p);
     setEmitted(e);
     setGlobalOffsets(offsets);
+    setBanques(bList);
 
     if (c.length > 0 && !formData.checkNum) {
       const carnet = c[0];
@@ -220,9 +224,9 @@ export default function Cheques() {
              </div>
              
              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-               <div><label style={lbl}>Banque</label><select name="bank" value={formData.bank} onChange={handleChange} style={{ width: '100%' }}>
-                  <option>Attijariwafa Bank</option><option>CIH BANK</option><option>Banque Populaire</option><option>BMCE Bank</option><option>Société Générale</option>
-               </select></div>
+                <div><label style={lbl}>Banque</label><select name="bank" value={formData.bank} onChange={handleChange} style={{ width: '100%' }}>
+                   {banques.map(b => <option key={b} value={b}>{b}</option>)}
+                </select></div>
                <div><label style={lbl}>N° Chèque</label><input name="checkNum" value={formData.checkNum} onChange={handleChange} style={{ width: '100%', fontWeight: 700 }} /></div>
              </div>
 

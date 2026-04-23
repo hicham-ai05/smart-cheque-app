@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, Save, CheckCircle, FileText, CreditCard } from 'lucide-react';
 import { numberToFrench } from '../utils/numberToFrench';
+import { getBanques } from '../utils/storage';
 
 export default function NewCheckForm() {
   const [carnets, setCarnets] = useState([]);
@@ -8,6 +9,7 @@ export default function NewCheckForm() {
   const [payees, setPayees] = useState([]);
   const [logoError, setLogoError] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [banques, setBanques] = useState([]);
 
   const [formData, setFormData] = useState({
     type: 'Chèque', // 'Chèque' or 'LCN'
@@ -27,12 +29,17 @@ export default function NewCheckForm() {
   useEffect(() => {
     const c = JSON.parse(localStorage.getItem('carnets') || '[]').filter(c => c.etat === 'Ouvert');
     const p = JSON.parse(localStorage.getItem('payees') || '[]');
+    const bList = getBanques();
     setCarnets(c);
     setPayees(p);
+    setBanques(bList);
+    
     if (c.length > 0) {
       const carnet = c[0];
       setSelectedCarnet(carnet);
       setFormData(f => ({ ...f, bank: carnet.bank, checkNum: carnet.numCours }));
+    } else if (bList.length > 0) {
+      setFormData(f => ({ ...f, bank: bList[0] }));
     }
   }, []);
 
@@ -158,7 +165,7 @@ export default function NewCheckForm() {
             <div>
               <label style={lbl}>Banque / Domiciliation principale</label>
               <select name="bank" value={formData.bank} onChange={handleChange} style={{ width: '100%' }}>
-                <option>CIH BANK</option><option>Banque Populaire</option><option>Attijariwafa Bank</option><option>BMCE Bank</option><option>Société Générale</option>
+                {banques.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
           </div>

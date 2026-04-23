@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Printer, Save, CheckCircle, FileText, Trash2, Settings, X, Move } from 'lucide-react';
 import { numberToFrench } from '../utils/numberToFrench';
 import { BankLogoRender } from '../utils/bankLogos.jsx';
+import { getBanques } from '../utils/storage';
 
 const CHECK_WIDTH_MM = 200;
 const CHECK_HEIGHT_MM = 105;
@@ -34,6 +35,7 @@ export default function Effets() {
   const [calibrating, setCalibrating] = useState(false);
   const [dragging, setDragging] = useState(null);
   const [globalOffsets, setGlobalOffsets] = useState({ left: 0, top: 0 });
+  const [banques, setBanques] = useState([]);
   const previewRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -58,11 +60,13 @@ export default function Effets() {
     const p = JSON.parse(localStorage.getItem('payees') || '[]');
     const e = JSON.parse(localStorage.getItem('emittedDocs') || '[]').filter(d => d.type === 'LCN');
     const offsets = JSON.parse(localStorage.getItem('globalPrintOffsets') || '{"left": 0, "top": 0}');
+    const bList = getBanques();
     
     setCarnets(c);
     setPayees(p);
     setEmitted(e);
     setGlobalOffsets(offsets);
+    setBanques(bList);
 
     if (c.length > 0 && !formData.checkNum) {
       const carnet = c[0];
@@ -220,7 +224,7 @@ export default function Effets() {
              
              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                <div><label style={lbl}>Banque</label><select name="bank" value={formData.bank} onChange={handleChange} style={{ width: '100%' }}>
-                  <option>Attijariwafa Bank</option><option>CIH BANK</option><option>Banque Populaire</option><option>BMCE Bank</option><option>Société Générale</option>
+                  {banques.map(b => <option key={b} value={b}>{b}</option>)}
                </select></div>
                <div><label style={lbl}>Date d'échéance</label><input name="echeance" type="date" value={formData.echeance} onChange={handleChange} style={{ width: '100%', border: '1px solid orange' }} /></div>
              </div>
