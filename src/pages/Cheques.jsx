@@ -3,7 +3,8 @@ import { Printer, Save, CheckCircle, CreditCard, Trash2, Settings, X, Move } fro
 import { numberToFrench } from '../utils/numberToFrench';
 import { BankLogoRender } from '../utils/bankLogos.jsx';
 
-import { getDimensions, saveDimensions } from '../utils/checkDimensions';
+const CHECK_WIDTH_MM = 175;
+const CHECK_HEIGHT_MM = 80;
 
 // Default positions for a standard Moroccan PINKISH cheque
 const defaultFields = [
@@ -46,10 +47,6 @@ export default function Cheques() {
     bank: 'CIH BANK',
   });
 
-  const [docDimensions, setDocDimensions] = useState({ width: 175, height: 80 });
-  const CHECK_WIDTH_MM = docDimensions.width;
-  const CHECK_HEIGHT_MM = docDimensions.height;
-
   useEffect(() => { loadData(); }, []);
 
   const loadData = () => {
@@ -63,9 +60,6 @@ export default function Cheques() {
     setEmitted(e);
     setGlobalOffsets(offsets);
 
-    const initialBank = (c.length > 0 && !formData.checkNum) ? c[0].bank : formData.bank;
-    setDocDimensions(getDimensions('Chèque', initialBank));
-
     if (c.length > 0 && !formData.checkNum) {
       const carnet = c[0];
       setSelectedCarnet(carnet);
@@ -78,13 +72,9 @@ export default function Cheques() {
 
   const loadTemplate = (bankName) => {
     const savedTemplates = JSON.parse(localStorage.getItem('printTemplates') || '{}');
-    const key = `${bankName}_Chèque`;
-    setDocDimensions(getDimensions('Chèque', bankName));
-    
-    if (savedTemplates[key]) {
-      const data = savedTemplates[key];
-      const savedFields = Array.isArray(data) ? data : (data.fields || []);
-      const merged = defaultFields.map(df => savedFields.find(sf => sf.id === df.id) || df);
+    if (savedTemplates[`${bankName}_Chèque`]) {
+      const saved = savedTemplates[`${bankName}_Chèque`];
+      const merged = defaultFields.map(df => saved.find(sf => sf.id === df.id) || df);
       setTemplate(merged);
     } else {
       setTemplate(defaultFields.map(f => ({ ...f })));
@@ -93,8 +83,7 @@ export default function Cheques() {
 
   const saveTemplate = () => {
     const all = JSON.parse(localStorage.getItem('printTemplates') || '{}');
-    const key = `${formData.bank}_Chèque`;
-    all[key] = { fields: template, dimensions: docDimensions };
+    all[`${formData.bank}_Chèque`] = template;
     localStorage.setItem('printTemplates', JSON.stringify(all));
     localStorage.setItem('globalPrintOffsets', JSON.stringify(globalOffsets));
     setSaved(true);
@@ -105,19 +94,12 @@ export default function Cheques() {
     const { name, value } = e.target;
     const update = { [name]: value };
     if (name === 'amount') update.amountText = value ? numberToFrench(value) : '';
-    if (name === 'bank') {
-      loadTemplate(value);
-    }
+    if (name === 'bank') loadTemplate(value);
     setFormData(f => ({ ...f, ...update }));
     setSaved(false);
   };
 
-  const handlePrint = () => { 
-    saveCheck('Émis'); 
-    setTimeout(() => {
-      window.print(); 
-    }, 500);
-  };
+  const handlePrint = () => { saveCheck('Émis'); window.print(); };
 
   const saveCheck = (status = 'Brouillon') => {
     const newCheck = {
@@ -264,7 +246,7 @@ export default function Cheques() {
               </button>
             </div>
             
-            <div ref={previewRef} style={{ ...checkContainer, width: `${CHECK_WIDTH_MM}mm`, height: `${CHECK_HEIGHT_MM}mm` }} className="printable-check">
+            <div ref={previewRef} style={checkContainer} className="printable-check">
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                  <div style={{ position: 'absolute', top: 5, left: 5 }}><BankLogoRender bankName={formData.bank} /></div>
                  <div style={{ position: 'absolute', top: 5, right: 10, fontSize: '0.7rem', color: '#64748b' }}>N° {formData.checkNum}</div>
@@ -295,25 +277,14 @@ export default function Cheques() {
             </div>
             {calibrating && (
               <div className="card" style={{ padding: '0.75rem', background: 'var(--bg-element)', marginTop: '0.5rem' }}>
-                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--warning)', marginBottom: '0.5rem' }}>📏 Taille du Chèque & Marge Globale</p>
+                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--warning)', marginBottom: '0.5rem' }}>📏 Marge Globale d'Impression (HP M12a / Calibration)</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.7rem' }}>Largeur (mm)</label>
-                    <input type="number" value={docDimensions.width} onChange={e => setDocDimensions({...docDimensions, width: parseFloat(e.target.value)||175})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.7rem' }}>Hauteur (mm)</label>
-                    <input type="number" value={docDimensions.height} onChange={e => setDocDimensions({...docDimensions, height: parseFloat(e.target.value)||80})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.7rem' }}>Marge Gauche (mm)</label>
+                    <label style={{ fontSize: '0.7rem' }}>Décalage Gauche (mm)</label>
                     <input type="number" value={globalOffsets.left} onChange={e => setGlobalOffsets({...globalOffsets, left: parseFloat(e.target.value)||0})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.7rem' }}>Marge Haut (mm)</label>
+                    <label style={{ fontSize: '0.7rem' }}>Décalage Haut (mm)</label>
                     <input type="number" value={globalOffsets.top} onChange={e => setGlobalOffsets({...globalOffsets, top: parseFloat(e.target.value)||0})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
                   </div>
                 </div>
@@ -391,29 +362,10 @@ export default function Cheques() {
 
       <style>{`
         @media print {
+          body * { visibility: hidden; }
+          .real-print-only, .real-print-only * { visibility: visible; }
+          .real-print-only { position: absolute; left: 0; top: 0; width: ${CHECK_WIDTH_MM}mm; height: ${CHECK_HEIGHT_MM}mm; margin: 0; padding: 0; }
           @page { size: auto; margin: 0; }
-          html, body { 
-            background: white !important; 
-            color: black !important; 
-            margin: 0 !important; 
-            padding: 0 !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-          #root { background: white !important; }
-          /* Hide everything */
-          body * { visibility: hidden !important; }
-          /* Show only the print container and its content */
-          .real-print-only, .real-print-only * { visibility: visible !important; }
-          .real-print-only { 
-            display: block !important; 
-            position: absolute; 
-            left: ${globalOffsets.left}mm; 
-            top: ${globalOffsets.top}mm; 
-            width: ${CHECK_WIDTH_MM}mm; 
-            height: ${CHECK_HEIGHT_MM}mm;
-            background: white !important;
-          }
         }
         @media screen { .real-print-only { display: none; } }
       `}</style>
@@ -424,7 +376,7 @@ export default function Cheques() {
 const lbl = { fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem', display: 'block' };
 const checkContainer = {
   backgroundColor: '#fff0f5', // Pinkish background for Chèque
-  borderRadius: '4px', border: '1px solid #fda4af', position: 'relative', overflow: 'hidden',
+  borderRadius: '4px', border: '1px solid #fda4af', aspectRatio: '175/80', position: 'relative', overflow: 'hidden',
   backgroundImage: 'radial-gradient(#fecdd3 1px, transparent 1px)', backgroundSize: '15px 15px'
 };
 const ibtn = { padding: '0.4rem', cursor: 'pointer', background: 'none', border: 'none' };

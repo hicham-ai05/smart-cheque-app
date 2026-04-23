@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Save, RefreshCw, Layers } from 'lucide-react';
 import { getBankLogo, BankLogoRender } from '../utils/bankLogos.jsx';
 
-import { getDimensions, saveDimensions, DEFAULT_DIMENSIONS } from '../utils/checkDimensions';
-
 const BANKS = ['CIH BANK', 'Banque Populaire', 'Attijariwafa Bank', 'BMCE Bank', 'Société Générale', 'Crédit du Maroc', 'Crédit Agricole du Maroc'];
 const TYPES = ['Chèque', 'LCN'];
+
+const DIMENSIONS = {
+  'Chèque': { width: 175, height: 80 },
+  'LCN': { width: 200, height: 105 }
+};
 
 const defaultFields = [
   { id: 'amount', label: 'Montant (Chiffres)', top: 35, left: 130, width: 40, height: 10 },
@@ -25,9 +28,6 @@ export default function Templates() {
   const [type, setType] = useState(TYPES[0]);
   
   const [fields, setFields] = useState([]);
-  const [docDimensions, setDocDimensions] = useState({ width: 175, height: 80 });
-  const CHECK_WIDTH_MM = docDimensions.width;
-  const CHECK_HEIGHT_MM = docDimensions.height;
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -37,12 +37,8 @@ export default function Templates() {
   const loadTemplate = () => {
     const savedTemplates = JSON.parse(localStorage.getItem('printTemplates') || '{}');
     const key = `${bank}_${type}`;
-    const dims = getDimensions(type, bank);
-    setDocDimensions(dims);
-    
     if (savedTemplates[key]) {
-      const data = savedTemplates[key];
-      setFields(Array.isArray(data) ? data : (data.fields || []));
+      setFields(savedTemplates[key]);
     } else {
       setFields(type === 'Chèque' ? [...defaultFields] : [...defaultFields, ...lcnExtras]);
     }
@@ -51,7 +47,7 @@ export default function Templates() {
   const saveTemplate = () => {
     const savedTemplates = JSON.parse(localStorage.getItem('printTemplates') || '{}');
     const key = `${bank}_${type}`;
-    savedTemplates[key] = { fields, dimensions: docDimensions };
+    savedTemplates[key] = fields;
     localStorage.setItem('printTemplates', JSON.stringify(savedTemplates));
     alert('Modèle sauvegardé avec succès !');
   };
@@ -59,7 +55,6 @@ export default function Templates() {
   const resetTemplate = () => {
     if(window.confirm('Réinitialiser ce modèle aux paramètres par défaut ?')) {
        setFields(type === 'Chèque' ? [...defaultFields] : [...defaultFields, ...lcnExtras]);
-       setDocDimensions(DEFAULT_DIMENSIONS[type]);
     }
   };
 
@@ -77,9 +72,9 @@ export default function Templates() {
     
     const rect = canvasRef.current.getBoundingClientRect();
     
-    // Convert px to mm based on canvas render size vs check real size
-    const mmPerPxX = CHECK_WIDTH_MM / rect.width;
-    const mmPerPxY = CHECK_HEIGHT_MM / rect.height;
+    const { width, height } = DIMENSIONS[type];
+    const mmPerPxX = width / rect.width;
+    const mmPerPxY = height / rect.height;
 
     let x = (e.clientX - rect.left) * mmPerPxX;
     let y = (e.clientY - rect.top) * mmPerPxY;
@@ -90,8 +85,8 @@ export default function Templates() {
 
     if (x < 0) x = 0;
     if (y < 0) y = 0;
-    if (x + field.width > CHECK_WIDTH_MM) x = CHECK_WIDTH_MM - field.width;
-    if (y + field.height > CHECK_HEIGHT_MM) y = CHECK_HEIGHT_MM - field.height;
+    if (x + field.width > width) x = width - field.width;
+    if (y + field.height > height) y = height - field.height;
 
     setFields(fields.map(f => f.id === draggingId ? { ...f, left: Math.round(x), top: Math.round(y) } : f));
   };
@@ -138,19 +133,7 @@ export default function Templates() {
         </div>
 
         <div className="card" style={{ flex: 1 }}>
-           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', marginBottom: '1rem' }}>Dimensions & Coordonnées (mm)</h3>
-           
-           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-              <div>
-                <label style={lbl}>Largeur Support (mm)</label>
-                <input type="number" value={docDimensions.width} onChange={e => setDocDimensions({...docDimensions, width: parseFloat(e.target.value)||100})} style={{ width: '100%' }} />
-              </div>
-              <div>
-                <label style={lbl}>Hauteur Support (mm)</label>
-                <input type="number" value={docDimensions.height} onChange={e => setDocDimensions({...docDimensions, height: parseFloat(e.target.value)||50})} style={{ width: '100%' }} />
-              </div>
-           </div>
-
+           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', marginBottom: '1rem' }}>Coordonnées (mm)</h3>
            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
              {fields.map(f => (
                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.8rem' }}>
@@ -164,7 +147,7 @@ export default function Templates() {
 
       <div className="card" style={{ overflowX: 'auto', background: 'var(--bg-element)' }}>
          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', display: 'flex', gap: '8px', alignItems: 'center' }}><Layers size={18} /> Surface d'Impression Physique ({docDimensions.width}x{docDimensions.height} mm)</h3>
+           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', display: 'flex', gap: '8px', alignItems: 'center' }}><Layers size={18} /> Surface d'Impression Physique ({DIMENSIONS[type].width}x{DIMENSIONS[type].height} mm)</h3>
            <span className="badge warning">Ne pas dépasser le cadre.</span>
          </div>
          
@@ -172,8 +155,8 @@ export default function Templates() {
             <div 
               ref={canvasRef}
               style={{
-                width: `${CHECK_WIDTH_MM * 5}px`, // Scaled up (5x) purely for visual UI editing
-                height: `${CHECK_HEIGHT_MM * 5}px`,
+                width: `${DIMENSIONS[type].width * 5}px`, // Scaled up (5x) purely for visual UI editing
+                height: `${DIMENSIONS[type].height * 5}px`,
                 backgroundColor: '#f8fafc',
                 backgroundImage: 'linear-gradient(rgba(203, 213, 225, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(203, 213, 225, 0.4) 1px, transparent 1px)', 
                 backgroundSize: '25px 25px',
