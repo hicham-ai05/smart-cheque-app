@@ -14,6 +14,7 @@ const mainNavItems = [
   { path: '/encaissement', label: 'ENCAISSEMENT', icon: ArrowDownToLine },
   { path: '/decaissement', label: 'DÉCAISSEMENT', icon: ArrowUpRight },
   { path: '/consultation', label: 'CONSULTATION', icon: Activity },
+  { path: '/analytics', label: 'ANALYTICS', icon: Activity },
   { path: '/templates', label: 'MODÈLES', icon: Settings2 },
 ];
 

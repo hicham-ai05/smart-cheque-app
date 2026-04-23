@@ -12,6 +12,7 @@ import Encaissement from './pages/Encaissement';
 import Decaissement from './pages/Decaissement';
 import Consultation from './pages/Consultation';
 import Templates from './pages/Templates';
+import Analytics from './pages/Analytics';
 
 // New Premium Placeholders (Optional/additive based on your plan)
 import Contacts from './pages/Contacts';
@@ -48,6 +49,7 @@ function App() {
             <Route path="/decaissement" element={<Decaissement />} />
             <Route path="/consultation" element={<Consultation />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/analytics" element={<Analytics />} />
 
             <Route path="*" element={<div className="text-center p-20 animate-fade-in"><h1 className="text-3xl font-bold text-white mb-4">Erreur 404</h1><p className="text-slate-400">Cette page n'existe pas ou est en construction.</p></div>} />
           </Routes>

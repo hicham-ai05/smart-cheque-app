@@ -103,15 +103,16 @@ export default function Cheques() {
 
   const saveCheck = (status = 'Brouillon') => {
     const newCheck = {
-      id: `CHQ-${formData.checkNum || Date.now()}`,
       ...formData,
+      id: formData.id || `CHQ-${formData.checkNum || Date.now()}`,
       status,
-      timestamp: new Date().toISOString()
+      timestamp: formData.timestamp || new Date().toISOString()
     };
     const allDocs = JSON.parse(localStorage.getItem('emittedDocs') || '[]');
     localStorage.setItem('emittedDocs', JSON.stringify([newCheck, ...allDocs.filter(d => d.id !== newCheck.id)]));
     
-    if (selectedCarnet && status !== 'Brouillon') {
+    // Only increment carnet if it's a new check (not editing an existing emitted check that already took a number)
+    if (selectedCarnet && status !== 'Brouillon' && !formData.id) {
       const allCarnets = JSON.parse(localStorage.getItem('carnets') || '[]');
       const nextNum = String(parseInt(selectedCarnet.numCours) + 1).padStart(selectedCarnet.numCours.length, '0');
       const updated = allCarnets.map(c => c.id === selectedCarnet.id ? { ...c, numCours: nextNum, etat: parseInt(nextNum) > parseInt(c.numFin) ? 'Fermé' : 'Ouvert' } : c);
@@ -120,6 +121,21 @@ export default function Cheques() {
     }
     loadData();
     if (status === 'Émis') setShowForm(false);
+  };
+
+  const handleEdit = (doc) => {
+    setFormData(doc);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Voulez-vous vraiment supprimer ce chèque ?')) {
+      const allDocs = JSON.parse(localStorage.getItem('emittedDocs') || '[]');
+      const updatedDocs = allDocs.filter(d => d.id !== id);
+      localStorage.setItem('emittedDocs', JSON.stringify(updatedDocs));
+      loadData();
+    }
   };
 
   const onMouseDown = useCallback((e, id) => {
@@ -156,11 +172,14 @@ export default function Cheques() {
   }, [calibrating, onMouseMove]);
 
   const getFieldValue = (id) => {
-    if (id === 'amount') return formData.amount ? `# ${Number(formData.amount).toLocaleString('fr-MA', { minimumFractionDigits: 2 })} #` : '';
-    if (id === 'amountText') return formData.amountText;
-    if (id === 'payee') return formData.payee;
-    if (id === 'payableA') return formData.payableA;
-    if (id === 'city') return formData.city;
+    if (id === 'amount') {
+      const formattedNumber = Number(formData.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }).replace(/,/g, ' ');
+      return formData.amount ? `# ${formattedNumber} #` : '';
+    }
+    if (id === 'amountText') return formData.amountText ? `${formData.amountText.toUpperCase()} * * * * *` : '';
+    if (id === 'payee') return formData.payee ? formData.payee.toUpperCase() : '';
+    if (id === 'payableA') return formData.payableA ? formData.payableA.toUpperCase() : '';
+    if (id === 'city') return formData.city ? formData.city.toUpperCase() : '';
     if (id === 'date') return formData.date ? formData.date.split('-').reverse().join('/') : '';
     return '';
   };
@@ -172,7 +191,21 @@ export default function Cheques() {
           <h1 className="page-title">CHÈQUES</h1>
           <p className="page-subtitle">Émission de chèques bancaires (Normes BAM).</p>
         </div>
-        {!showForm ? <button className="btn-primary" onClick={() => setShowForm(true)}>Émettre un Chèque</button> : <button className="btn-secondary" onClick={() => setShowForm(false)}>Fermer</button>}
+        {!showForm ? <button className="btn-primary" onClick={() => {
+            setFormData({
+              type: 'Chèque',
+              checkNum: selectedCarnet ? selectedCarnet.numCours : '',
+              amount: '',
+              amountText: '',
+              payee: '',
+              date: new Date().toISOString().split('T')[0],
+              city: 'Casablanca',
+              payableA: selectedCarnet ? selectedCarnet.agence : '',
+              observation: '',
+              bank: selectedCarnet ? selectedCarnet.bank : 'CIH BANK',
+            });
+            setShowForm(true);
+        }}>Émettre un Chèque</button> : <button className="btn-secondary" onClick={() => setShowForm(false)}>Fermer</button>}
       </header>
 
       {showForm && (
@@ -229,9 +262,9 @@ export default function Cheques() {
                  {template.map(field => (
                    <div key={field.id} onMouseDown={(e) => onMouseDown(e, field.id)} style={{
                      position: 'absolute', left: mmToPercent(field.left, 'x'), top: mmToPercent(field.top, 'y'),
-                     fontFamily: (field.id === 'amountText' || field.id === 'payee') ? '"Caveat", cursive' : 'monospace',
-                     fontSize: field.id === 'amountText' ? '1rem' : field.id === 'amount' ? '1rem' : '0.7rem',
-                     fontWeight: 700, color: '#0f172a', cursor: calibrating ? 'grab' : 'default',
+                     fontFamily: 'Arial, Helvetica, sans-serif',
+                     fontSize: '0.75rem',
+                     fontWeight: 600, color: '#0f172a', cursor: calibrating ? 'grab' : 'default',
                      border: calibrating ? '1px dashed orange' : 'none', padding: calibrating ? '2px' : 0
                    }}>{getFieldValue(field.id)}</div>
                  ))}
@@ -280,11 +313,52 @@ export default function Cheques() {
         {template.map(f => (
           <div key={f.id} style={{
             position: 'absolute', left: `${f.left}mm`, top: `${f.top}mm`,
-            fontFamily: (f.id === 'amountText' || f.id === 'payee') ? '"Caveat", cursive' : 'monospace',
-            fontSize: '12pt', fontWeight: 600, color: '#000', whiteSpace: 'nowrap'
+            fontFamily: 'Arial, Helvetica, sans-serif',
+            fontSize: '11pt', fontWeight: 600, color: '#000', whiteSpace: 'nowrap'
           }}>{getFieldValue(f.id)}</div>
         ))}
       </div>
+
+      {/* Historique des Chèques */}
+      {!showForm && (
+        <div className="card hide-on-print" style={{ marginTop: '2rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', marginBottom: '1rem' }}>Historique des Chèques</h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  <th style={{ padding: '0.75rem' }}>Date</th>
+                  <th style={{ padding: '0.75rem' }}>N° Chèque</th>
+                  <th style={{ padding: '0.75rem' }}>Bénéficiaire</th>
+                  <th style={{ padding: '0.75rem' }}>Montant</th>
+                  <th style={{ padding: '0.75rem' }}>Statut</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emitted.map(doc => (
+                  <tr key={doc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '0.75rem' }}>{doc.date.split('-').reverse().join('/')}</td>
+                    <td style={{ padding: '0.75rem', fontWeight: 600, color: '#fff' }}>{doc.checkNum}</td>
+                    <td style={{ padding: '0.75rem' }}>{doc.payee}</td>
+                    <td style={{ padding: '0.75rem', fontWeight: 600 }}>{Number(doc.amount).toLocaleString('fr-MA')} MAD</td>
+                    <td style={{ padding: '0.75rem' }}>
+                       <span style={{ padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', background: doc.status === 'Émis' ? '#10b98120' : '#f59e0b20', color: doc.status === 'Émis' ? '#10b981' : '#f59e0b' }}>
+                          {doc.status}
+                       </span>
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                       <button style={{ ...ibtn, color: 'var(--text-muted)' }} onClick={() => handleEdit(doc)} title="Modifier"><Settings size={16} /></button>
+                       <button style={{ ...ibtn, color: 'var(--danger)' }} onClick={() => handleDelete(doc.id)} title="Supprimer"><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                ))}
+                {emitted.length === 0 && <tr><td colSpan="6" style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>Aucun chèque enregistré.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media print {
