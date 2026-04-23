@@ -112,7 +112,12 @@ export default function Cheques() {
     setSaved(false);
   };
 
-  const handlePrint = () => { saveCheck('Émis'); window.print(); };
+  const handlePrint = () => { 
+    saveCheck('Émis'); 
+    setTimeout(() => {
+      window.print(); 
+    }, 500);
+  };
 
   const saveCheck = (status = 'Brouillon') => {
     const newCheck = {
@@ -387,20 +392,28 @@ export default function Cheques() {
       <style>{`
         @media print {
           @page { size: auto; margin: 0; }
-          body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; }
-          .hide-on-print, aside, nav, button, .AIChat_container, .card, header { display: none !important; }
+          html, body { 
+            background: white !important; 
+            color: black !important; 
+            margin: 0 !important; 
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
           #root { background: white !important; }
+          /* Hide everything */
+          body * { visibility: hidden !important; }
+          /* Show only the print container and its content */
+          .real-print-only, .real-print-only * { visibility: visible !important; }
           .real-print-only { 
             display: block !important; 
-            visibility: visible !important;
             position: absolute; 
             left: ${globalOffsets.left}mm; 
             top: ${globalOffsets.top}mm; 
             width: ${CHECK_WIDTH_MM}mm; 
             height: ${CHECK_HEIGHT_MM}mm;
-            margin: 0; padding: 0;
+            background: white !important;
           }
-          .real-print-only * { visibility: visible !important; }
         }
         @media screen { .real-print-only { display: none; } }
       `}</style>
