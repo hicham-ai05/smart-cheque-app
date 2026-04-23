@@ -3,8 +3,7 @@ import { Printer, Save, CheckCircle, FileText, Trash2, Settings, X, Move } from 
 import { numberToFrench } from '../utils/numberToFrench';
 import { BankLogoRender } from '../utils/bankLogos.jsx';
 
-const CHECK_WIDTH_MM = 175;
-const CHECK_HEIGHT_MM = 80;
+import { getDimensions, saveDimensions } from '../utils/checkDimensions';
 
 // Default positions for a standard Moroccan YELLOWISH LCN
 const defaultFields = [
@@ -51,6 +50,10 @@ export default function Effets() {
     bank: 'CIH BANK',
   });
 
+  const [docDimensions, setDocDimensions] = useState({ width: 200, height: 105 });
+  const CHECK_WIDTH_MM = docDimensions.width;
+  const CHECK_HEIGHT_MM = docDimensions.height;
+
   useEffect(() => { loadData(); }, []);
 
   const loadData = () => {
@@ -64,6 +67,9 @@ export default function Effets() {
     setEmitted(e);
     setGlobalOffsets(offsets);
 
+    const initialBank = (c.length > 0 && !formData.checkNum) ? c[0].bank : formData.bank;
+    setDocDimensions(getDimensions('LCN', initialBank));
+
     if (c.length > 0 && !formData.checkNum) {
       const carnet = c[0];
       setSelectedCarnet(carnet);
@@ -76,9 +82,13 @@ export default function Effets() {
 
   const loadTemplate = (bankName) => {
     const savedTemplates = JSON.parse(localStorage.getItem('printTemplates') || '{}');
-    if (savedTemplates[`${bankName}_LCN`]) {
-      const saved = savedTemplates[`${bankName}_LCN`];
-      const merged = defaultFields.map(df => saved.find(sf => sf.id === df.id) || df);
+    const key = `${bankName}_LCN`;
+    setDocDimensions(getDimensions('LCN', bankName));
+    
+    if (savedTemplates[key]) {
+      const data = savedTemplates[key];
+      const savedFields = Array.isArray(data) ? data : (data.fields || []);
+      const merged = defaultFields.map(df => savedFields.find(sf => sf.id === df.id) || df);
       setTemplate(merged);
     } else {
       setTemplate(defaultFields.map(f => ({ ...f })));
@@ -87,7 +97,8 @@ export default function Effets() {
 
   const saveTemplate = () => {
     const all = JSON.parse(localStorage.getItem('printTemplates') || '{}');
-    all[`${formData.bank}_LCN`] = template;
+    const key = `${formData.bank}_LCN`;
+    all[key] = { fields: template, dimensions: docDimensions };
     localStorage.setItem('printTemplates', JSON.stringify(all));
     localStorage.setItem('globalPrintOffsets', JSON.stringify(globalOffsets));
     setSaved(true);
@@ -98,7 +109,9 @@ export default function Effets() {
     const { name, value } = e.target;
     const update = { [name]: value };
     if (name === 'amount') update.amountText = value ? numberToFrench(value) : '';
-    if (name === 'bank') loadTemplate(value);
+    if (name === 'bank') {
+      loadTemplate(value);
+    }
     setFormData(f => ({ ...f, ...update }));
     setSaved(false);
   };
@@ -250,7 +263,7 @@ export default function Effets() {
               </button>
             </div>
             
-            <div ref={previewRef} style={lcnContainer} className="printable-check">
+            <div ref={previewRef} style={{ ...lcnContainer, width: `${CHECK_WIDTH_MM}mm`, height: `${CHECK_HEIGHT_MM}mm` }} className="printable-check">
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                  <div style={{ position: 'absolute', top: 5, left: 5 }}><BankLogoRender bankName={formData.bank} /></div>
                  <div style={{ position: 'absolute', top: 5, right: 10, fontSize: '0.65rem', color: '#854d0e', fontWeight: 700 }}>LETTRE DE CHANGE</div>
@@ -278,6 +291,43 @@ export default function Effets() {
                  </div>
               </div>
             </div>
+            {calibrating && (
+              <div className="card" style={{ padding: '0.75rem', background: 'var(--bg-element)', marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--warning)', marginBottom: '0.5rem' }}>📏 Taille de l'Effet & Marge Globale</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.7rem' }}>Largeur (mm)</label>
+                    <input type="number" value={docDimensions.width} onChange={e => setDocDimensions({...docDimensions, width: parseFloat(e.target.value)||200})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem' }}>Hauteur (mm)</label>
+                    <input type="number" value={docDimensions.height} onChange={e => setDocDimensions({...docDimensions, height: parseFloat(e.target.value)||105})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.7rem' }}>Marge Gauche (mm)</label>
+                    <input type="number" value={globalOffsets.left} onChange={e => setGlobalOffsets({...globalOffsets, left: parseFloat(e.target.value)||0})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem' }}>Marge Haut (mm)</label>
+                    <input type="number" value={globalOffsets.top} onChange={e => setGlobalOffsets({...globalOffsets, top: parseFloat(e.target.value)||0})} style={{ width: '100%', padding: '4px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.5rem' }}>📍 Positions des champs</p>
+                <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', fontSize: '0.7rem' }}>
+                  {template.map(f => (
+                    <React.Fragment key={f.id}>
+                      <span style={{ color: 'var(--text-muted)' }}>{f.label}</span>
+                      <input type="number" value={f.left} onChange={e => setTemplate(prev => prev.map(tf => tf.id === f.id ? {...tf, left: parseFloat(e.target.value)||0} : tf))} style={{ width: '40px', padding: '2px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
+                      <input type="number" value={f.top} onChange={e => setTemplate(prev => prev.map(tf => tf.id === f.id ? {...tf, top: parseFloat(e.target.value)||0} : tf))} style={{ width: '40px', padding: '2px', background: 'var(--bg-card)', color: '#fff', border: '1px solid var(--border-color)' }} />
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -355,7 +405,7 @@ const ibtn = { padding: '0.4rem', cursor: 'pointer', background: 'none', border:
 const lbl = { fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.3rem', display: 'block' };
 const lcnContainer = {
   backgroundColor: '#fefce8', // Yellowish for LCN
-  borderRadius: '4px', border: '1px solid #eab308', aspectRatio: '175/80', position: 'relative', overflow: 'hidden',
+  borderRadius: '4px', border: '1px solid #eab308', position: 'relative', overflow: 'hidden',
   backgroundImage: 'linear-gradient(rgba(234,179,8,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(234,179,8,0.1) 1px, transparent 1px)',
   backgroundSize: '20px 20px'
 };
