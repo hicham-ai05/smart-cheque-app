@@ -180,7 +180,7 @@ export default function Cheques() {
     if (id === 'payee') return formData.payee ? formData.payee.toUpperCase() : '';
     if (id === 'payableA') return formData.payableA ? formData.payableA.toUpperCase() : '';
     if (id === 'city') return formData.city ? formData.city.toUpperCase() : '';
-    if (id === 'date') return formData.date ? formData.date.split('-').reverse().join('/') : '';
+    if (id === 'date') return (formData.date && typeof formData.date === 'string') ? formData.date.split('-').reverse().join('/') : '';
     return '';
   };
 
@@ -338,7 +338,7 @@ export default function Cheques() {
               <tbody>
                 {emitted.map(doc => (
                   <tr key={doc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '0.75rem' }}>{doc.date.split('-').reverse().join('/')}</td>
+                    <td style={{ padding: '0.75rem' }}>{(doc.date && typeof doc.date === 'string') ? doc.date.split('-').reverse().join('/') : '-'}</td>
                     <td style={{ padding: '0.75rem', fontWeight: 600, color: '#fff' }}>{doc.checkNum}</td>
                     <td style={{ padding: '0.75rem' }}>{doc.payee}</td>
                     <td style={{ padding: '0.75rem', fontWeight: 600 }}>{Number(doc.amount).toLocaleString('fr-MA')} MAD</td>

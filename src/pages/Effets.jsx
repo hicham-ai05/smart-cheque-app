@@ -177,7 +177,7 @@ export default function Effets() {
     if (id === 'tire') return formData.tire ? formData.tire.toUpperCase() : '';
     if (id === 'domiciliation') return formData.domiciliation ? formData.domiciliation.toUpperCase() : '';
     if (id === 'city') return formData.city ? formData.city.toUpperCase() : '';
-    if (id === 'date') return formData.date ? formData.date.split('-').reverse().join('/') : '';
+    if (id === 'date') return (formData.date && typeof formData.date === 'string') ? formData.date.split('-').reverse().join('/') : '';
     return '';
   };
 
@@ -315,7 +315,7 @@ export default function Effets() {
               <tbody>
                 {emitted.map(doc => (
                   <tr key={doc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '0.75rem' }}>{doc.echeance.split('-').reverse().join('/')}</td>
+                    <td style={{ padding: '0.75rem' }}>{(doc.echeance && typeof doc.echeance === 'string') ? doc.echeance.split('-').reverse().join('/') : '-'}</td>
                     <td style={{ padding: '0.75rem', fontWeight: 600, color: '#fff' }}>{doc.tire}</td>
                     <td style={{ padding: '0.75rem' }}>{doc.payee}</td>
                     <td style={{ padding: '0.75rem', fontWeight: 600 }}>{Number(doc.amount).toLocaleString('fr-MA')} MAD</td>
