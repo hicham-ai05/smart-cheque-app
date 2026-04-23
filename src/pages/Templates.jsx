@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Save, RefreshCw, Layers } from 'lucide-react';
 import { getBankLogo, BankLogoRender } from '../utils/bankLogos.jsx';
 
+import { getDimensions, saveDimensions, DEFAULT_DIMENSIONS } from '../utils/checkDimensions';
+
 const BANKS = ['CIH BANK', 'Banque Populaire', 'Attijariwafa Bank', 'BMCE Bank', 'Société Générale', 'Crédit du Maroc', 'Crédit Agricole du Maroc'];
 const TYPES = ['Chèque', 'LCN'];
-
-// Dimensions du chèque standard marocain : 175mm x 80mm
-const CHECK_WIDTH_MM = 175;
-const CHECK_HEIGHT_MM = 80;
 
 const defaultFields = [
   { id: 'amount', label: 'Montant (Chiffres)', top: 35, left: 130, width: 40, height: 10 },
@@ -27,6 +25,9 @@ export default function Templates() {
   const [type, setType] = useState(TYPES[0]);
   
   const [fields, setFields] = useState([]);
+  const [docDimensions, setDocDimensions] = useState({ width: 175, height: 80 });
+  const CHECK_WIDTH_MM = docDimensions.width;
+  const CHECK_HEIGHT_MM = docDimensions.height;
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -36,8 +37,12 @@ export default function Templates() {
   const loadTemplate = () => {
     const savedTemplates = JSON.parse(localStorage.getItem('printTemplates') || '{}');
     const key = `${bank}_${type}`;
+    const dims = getDimensions(type, bank);
+    setDocDimensions(dims);
+    
     if (savedTemplates[key]) {
-      setFields(savedTemplates[key]);
+      const data = savedTemplates[key];
+      setFields(Array.isArray(data) ? data : (data.fields || []));
     } else {
       setFields(type === 'Chèque' ? [...defaultFields] : [...defaultFields, ...lcnExtras]);
     }
@@ -46,7 +51,7 @@ export default function Templates() {
   const saveTemplate = () => {
     const savedTemplates = JSON.parse(localStorage.getItem('printTemplates') || '{}');
     const key = `${bank}_${type}`;
-    savedTemplates[key] = fields;
+    savedTemplates[key] = { fields, dimensions: docDimensions };
     localStorage.setItem('printTemplates', JSON.stringify(savedTemplates));
     alert('Modèle sauvegardé avec succès !');
   };
@@ -54,6 +59,7 @@ export default function Templates() {
   const resetTemplate = () => {
     if(window.confirm('Réinitialiser ce modèle aux paramètres par défaut ?')) {
        setFields(type === 'Chèque' ? [...defaultFields] : [...defaultFields, ...lcnExtras]);
+       setDocDimensions(DEFAULT_DIMENSIONS[type]);
     }
   };
 
@@ -132,7 +138,19 @@ export default function Templates() {
         </div>
 
         <div className="card" style={{ flex: 1 }}>
-           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', marginBottom: '1rem' }}>Coordonnées (mm)</h3>
+           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', marginBottom: '1rem' }}>Dimensions & Coordonnées (mm)</h3>
+           
+           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+              <div>
+                <label style={lbl}>Largeur Support (mm)</label>
+                <input type="number" value={docDimensions.width} onChange={e => setDocDimensions({...docDimensions, width: parseFloat(e.target.value)||100})} style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label style={lbl}>Hauteur Support (mm)</label>
+                <input type="number" value={docDimensions.height} onChange={e => setDocDimensions({...docDimensions, height: parseFloat(e.target.value)||50})} style={{ width: '100%' }} />
+              </div>
+           </div>
+
            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
              {fields.map(f => (
                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.8rem' }}>
@@ -146,7 +164,7 @@ export default function Templates() {
 
       <div className="card" style={{ overflowX: 'auto', background: 'var(--bg-element)' }}>
          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', display: 'flex', gap: '8px', alignItems: 'center' }}><Layers size={18} /> Surface d'Impression Physique (175x80 mm)</h3>
+           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', display: 'flex', gap: '8px', alignItems: 'center' }}><Layers size={18} /> Surface d'Impression Physique ({docDimensions.width}x{docDimensions.height} mm)</h3>
            <span className="badge warning">Ne pas dépasser le cadre.</span>
          </div>
          
